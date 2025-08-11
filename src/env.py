@@ -5,7 +5,7 @@ import numpy as np
 class MultiAgentEnv(gym.Env):
     metadata = {'render.modes': ['console']}
 
-    def __init__(self, n_agents=2, grid_size=10, dt=0.1, radius=0.5, max_steps=200):
+    def __init__(self, n_agents=2, grid_size=10, dt=0.1, radius=0.5, max_steps=600):
         super().__init__()
         self.n = n_agents
         self.grid_size = grid_size
@@ -28,6 +28,9 @@ class MultiAgentEnv(gym.Env):
         self.pos = np.random.uniform(0, self.grid_size, (self.n, 2))
         self.goals = np.random.uniform(0, self.grid_size, (self.n, 2))
         self.steps = 0
+        self.reached_mask = np.zeros(self.n, dtype=bool)
+        dists = np.linalg.norm(self.pos - self.goals, axis=1)
+        self.prev_dists = dists.copy()
         return self._get_obs()
 
     def _get_obs(self):
@@ -35,19 +38,54 @@ class MultiAgentEnv(gym.Env):
 
     def step(self, action):
         act = action.reshape(self.n, 2)
+
+        # freeze agents that already reached their goal
+        if hasattr(self, "reached_mask"):
+            act[self.reached_mask] = 0.0
+        else:
+            self.reached_mask = np.zeros(self.n, dtype=bool)
+
+        # apply dynamics and clamp to the box
         self.pos += self.dt * np.clip(act, -1, 1)
+        self.pos = np.clip(self.pos, 0.0, self.grid_size)
         self.steps += 1
 
+        # distances and progress
         dists = np.linalg.norm(self.pos - self.goals, axis=1)
-        rewards = -dists.copy()
+        if not hasattr(self, "prev_dists"):
+            self.prev_dists = dists.copy()
+        progress = self.prev_dists - dists  # >0 if moving closer
+        self.prev_dists = dists.copy()
+
+        # after computing progress
+        weights = np.ones(self.n)
+        if self.reached_mask.any():
+            # boost the incentive for the not-yet-reached agents
+            weights[~self.reached_mask] = 2.0   # try 2–3x
+        rewards = weights * (8.0 * progress) - 0.02
+
+        # reward: progress bonus + small step cost
+        #rewards = 10.0 * progress - 0.05  # tweak 5.0 and 0.05 as needed
+
         # collision penalty
         for i in range(self.n):
-            for j in range(i+1, self.n):
-                if np.linalg.norm(self.pos[i] - self.pos[j]) < 2*self.radius:
-                    rewards[i] -= 10
-                    rewards[j] -= 10
+            for j in range(i + 1, self.n):
+                if np.linalg.norm(self.pos[i] - self.pos[j]) < 2 * self.radius:
+                    rewards[i] -= 10.0
+                    rewards[j] -= 10.0
 
-        done = self.steps >= self.max_steps or np.all(dists < 0.1)
+        # goal handling: one-time bonus + mark reached
+        newly = (~self.reached_mask) & (dists < 0.35)
+        rewards[newly] += 100.0
+        self.reached_mask |= newly
+
+        if np.all(self.reached_mask):
+            rewards += 50.0   # one-time team bonus on the step it finishes
+
+
+        # done if everyone reached or step cap hit
+        done = self.steps >= self.max_steps or np.all(self.reached_mask)
+
         return self._get_obs(), rewards, done, {}
 
     def render(self, mode='console'):

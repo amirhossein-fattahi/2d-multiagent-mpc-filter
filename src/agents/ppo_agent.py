@@ -2,22 +2,33 @@ import torch
 import torch.nn as nn
 import torch.distributions as D
 
-class Policy(nn.Module):
-    def __init__(self, obs_dim, act_dim):
+class ActorCritic(nn.Module):
+    """
+    Minimal actor–critic for continuous 2D actions.
+    - Input: full global observation (obs_dim)
+    - Output: 2D action and a state value
+    """
+    def __init__(self, obs_dim: int, act_dim: int = 2):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(obs_dim, 64), nn.Tanh(),
-            nn.Linear(64, 64), nn.Tanh()
+        self.body = nn.Sequential(
+            nn.Linear(obs_dim, 128), nn.Tanh(),
+            nn.Linear(128, 128), nn.Tanh(),
         )
-        self.mean = nn.Linear(64, act_dim)
-        self.log_std = nn.Parameter(torch.zeros(act_dim))
+        self.pi_mean = nn.Linear(128, act_dim)
+        self.log_std = nn.Parameter(torch.zeros(act_dim))  # learned log-std
+        self.v_head = nn.Linear(128, 1)
 
-    def forward(self, x):
-        h = self.net(x)
-        return self.mean(h), self.log_std.exp()
+    def forward(self, obs: torch.Tensor):
+        h = self.body(obs)
+        mean = self.pi_mean(h)
+        std = self.log_std.exp().expand_as(mean)
+        dist = D.Normal(mean, std)
+        value = self.v_head(h).squeeze(-1)
+        return dist, value
 
-    def get_action(self, x):
-        mu, std = self(x)
-        dist = D.Normal(mu, std)
-        a = dist.sample()
-        return a, dist.log_prob(a).sum(-1)
+    @torch.no_grad()
+    def act(self, obs: torch.Tensor):
+        dist, value = self.forward(obs)
+        action = dist.sample()
+        logp = dist.log_prob(action).sum(-1)
+        return action, logp, value
