@@ -74,7 +74,7 @@ python -m pip install --upgrade pip wheel setuptools
 pip install -r requirements.txt
 # Optional (for clean imports across scripts/notebooks):
 pip install -e .
-
+```
 
 Verify cvxpy solvers:
 python -c "import cvxpy as cp; print(cp.installed_solvers())"
