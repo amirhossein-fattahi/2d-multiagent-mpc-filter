@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import csv, os, time, numpy as np
+import os, torch
 from env import MultiAgentEnv
 from agents.ppo_agent import ActorCritic
 
@@ -158,6 +159,11 @@ def main():
         writer.writerow([ep, float(np.mean(ep_return)), float(np.std(ep_return)), int(ep_collisions), int(step)])
 
         print(f"[Baseline] Episode {ep:04d} | Return per agent {ep_return} | Collisions {ep_collisions} | Steps {step}")
+
+    
+    os.makedirs("checkpoints", exist_ok=True)
+    for i, net in enumerate(nets):
+        torch.save(net.state_dict(), os.path.join("checkpoints", f"baseline_final_agent{i}.pt"))
 
     print("Training finished.")
 
