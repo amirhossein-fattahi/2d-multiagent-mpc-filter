@@ -55,8 +55,8 @@ def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--n-agents', type=int, default=2)
-    p.add_argument('--episodes', type=int, default=300)
-    p.add_argument('--horizon', type=int, default=256)
+    p.add_argument('--episodes', type=int, default=200)
+    p.add_argument('--horizon', type=int, default=500)
     p.add_argument('--lr', type=float, default=3e-4)
     p.add_argument('--gamma', type=float, default=0.99)
     p.add_argument('--lam', type=float, default=0.95)
@@ -65,7 +65,7 @@ def main():
     p.add_argument('--seed', type=int, default=1)
     args = p.parse_args()
 
-    run_tag = f"{'filtered' if 'filter' in __file__ else 'baseline'}_{int(time.time())}"
+    run_tag = f"{'filtered' if 'with_filter' in __file__ else 'baseline'}_{int(time.time())}"
     os.makedirs("results", exist_ok=True)
     csv_path = os.path.join("results", run_tag + ".csv")
     csv_file = open(csv_path, "w", newline="")
@@ -171,7 +171,7 @@ def main():
         ret_mean = float(np.mean(ep_return))
         csv_writer.writerow([ep, ret_mean, int(ep_collisions), int(step), success])
         csv_file.flush()
-        print(f"[{'Filtered' if 'filter' in __file__ else 'Baseline'}] "
+        print(f"[{'Filtered' if 'with_filter' in __file__ else 'Baseline'}] "
             f"Episode {ep:04d} | Return mean {ret_mean:.2f} | Collisions {ep_collisions} | "
             f"Steps {step} | Success {success}")
 
