@@ -23,9 +23,15 @@ class MultiAgentEnv(gym.Env):
 
         self.reset()
 
-    def reset(self):
-        self.pos = np.random.uniform(0, self.grid_size, (self.n, 2))
-        self.goals = np.random.uniform(0, self.grid_size, (self.n, 2))
+    def reset(self, starts=None, goals=None):
+        if starts is not None:
+            self.pos = np.array(starts, dtype=float).reshape(self.n, 2)
+        else:
+            self.pos = np.random.uniform(0, self.grid_size, (self.n, 2))
+        if goals is not None:
+            self.goals = np.array(goals, dtype=float).reshape(self.n, 2)
+        else:
+            self.goals = np.random.uniform(0, self.grid_size, (self.n, 2))
         self.steps = 0
         self.reached_mask = np.zeros(self.n, dtype=bool)
         dists = np.linalg.norm(self.pos - self.goals, axis=1)

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import csv, os, time, numpy as np
-import os, torch
+import json, torch
 from env import MultiAgentEnv
 from agents.ppo_agent import ActorCritic
 from filter.mpc_filter import mpc_filter
@@ -55,7 +55,7 @@ def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--n-agents', type=int, default=2)
-    p.add_argument('--episodes', type=int, default=200)
+    p.add_argument('--episodes', type=int, default=50)
     p.add_argument('--horizon', type=int, default=500)
     p.add_argument('--lr', type=float, default=3e-4)
     p.add_argument('--gamma', type=float, default=0.99)
@@ -176,9 +176,15 @@ def main():
             f"Steps {step} | Success {success}")
 
     
-    os.makedirs("checkpoints", exist_ok=True)
+    tag = f"{'filtered' if 'with_filter' in __file__ else 'baseline'}_{int(time.time())}"
+    ckpt_dir = os.path.join("checkpoints", tag)
+    os.makedirs(ckpt_dir, exist_ok=True)
     for i, net in enumerate(nets):
-        torch.save(net.state_dict(), os.path.join("checkpoints", f"filtered_final_agent{i}.pt"))
+        torch.save(nets[i].state_dict(), os.path.join(ckpt_dir, f"agent_{i}.pt"))
+    meta = dict(n_agents=args.n_agents, horizon=args.horizon, seed=args.seed)
+    with open(os.path.join(ckpt_dir, "meta.json"), "w") as f:
+        json.dump(meta, f, indent=2)
+    print(f"Saved checkpoints to {ckpt_dir}")
 
     print("Training finished.")
     csv_file.close()
