@@ -63,6 +63,13 @@ def main():
     p.add_argument('--epochs', type=int, default=4, help='PPO epochs per episode')
     p.add_argument('--seed', type=int, default=0)
     args = p.parse_args()
+    
+    run_tag = f"{'filtered' if 'filter' in __file__ else 'baseline'}_{int(time.time())}"
+    os.makedirs("results", exist_ok=True)
+    csv_path = os.path.join("results", run_tag + ".csv")
+    csv_file = open(csv_path, "w", newline="")
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(["episode", "return_mean", "collisions", "steps", "success"])  # header
 
     set_seed(args.seed)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -104,10 +111,12 @@ def main():
                 values.append(v.cpu())
 
             action_vec = np.concatenate(actions, axis=-1).astype(np.float32)
-            next_obs, rewards, done, _ = env.step(action_vec)
+            next_obs, rewards, done, info = env.step(action_vec)
+
 
             ep_return += np.array(rewards, dtype=np.float32)
-            ep_collisions += count_collisions(env.pos, env.radius)
+            ep_collisions += info.get("collisions_step", 0)
+
 
             # Save to buffers
             for i in range(args.n_agents):
@@ -158,7 +167,14 @@ def main():
 
         writer.writerow([ep, float(np.mean(ep_return)), float(np.std(ep_return)), int(ep_collisions), int(step)])
 
-        print(f"[Baseline] Episode {ep:04d} | Return per agent {ep_return} | Collisions {ep_collisions} | Steps {step}")
+        #print(f"[Baseline] Episode {ep:04d} | Return per agent {ep_return} | Collisions {ep_collisions} | Steps {step}")
+        success = 1 if (step < args.horizon or (info and info.get("all_reached", False))) else 0
+        ret_mean = float(np.mean(ep_return))
+        csv_writer.writerow([ep, ret_mean, int(ep_collisions), int(step), success])
+        csv_file.flush()
+        print(f"[{'Filtered' if 'filter' in __file__ else 'Baseline'}] "
+            f"Episode {ep:04d} | Return mean {ret_mean:.2f} | Collisions {ep_collisions} | "
+            f"Steps {step} | Success {success}")
 
     
     os.makedirs("checkpoints", exist_ok=True)
@@ -166,6 +182,9 @@ def main():
         torch.save(net.state_dict(), os.path.join("checkpoints", f"baseline_final_agent{i}.pt"))
 
     print("Training finished.")
+    csv_file.close()
+    print(f"Saved metrics to: {csv_path}")
+
 
 if __name__ == '__main__':
     main()
