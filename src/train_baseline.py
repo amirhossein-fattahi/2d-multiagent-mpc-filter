@@ -54,8 +54,8 @@ def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--n-agents', type=int, default=2)
-    p.add_argument('--episodes', type=int, default=50)
-    p.add_argument('--horizon', type=int, default=500, help='max steps per episode')
+    p.add_argument('--episodes', type=int, default=500)
+    p.add_argument('--horizon', type=int, default=300, help='max steps per episode')
     p.add_argument('--lr', type=float, default=3e-4)
     p.add_argument('--gamma', type=float, default=0.99)
     p.add_argument('--lam', type=float, default=0.95)
@@ -83,6 +83,14 @@ def main():
     opts = [torch.optim.Adam(net.parameters(), lr=args.lr) for net in nets]
 
     for ep in range(1, args.episodes + 1):
+        # in your training loop, at the start of each episode:
+        if ep < 100:
+            env.goal_threshold = 0.7
+        elif ep < 200:
+            env.goal_threshold = 0.5
+        else:
+            env.goal_threshold = 0.3
+
         obs = env.reset().astype(np.float32)
         done = False
         ep_return = np.zeros(args.n_agents, dtype=np.float32)
