@@ -8,7 +8,7 @@ DEFAULT_GOAL_THRESHOLD = 0.3
 class MultiAgentEnv(gym.Env):
     metadata = {'render.modes': ['console']}
 
-    def __init__(self, n_agents=2, grid_size=10, normalize_obs=True, dt=0.1, radius=0.5, max_steps=200,
+    def __init__(self, n_agents=2, grid_size=10, obs_mode="abs", normalize_obs=True, dt=0.1, radius=0.5, max_steps=200,
              goal_threshold=DEFAULT_GOAL_THRESHOLD,
              terminal_bonus=200.0, progress_scale=5.0, step_cost=0.05,
              sticky_on_goal=True):
@@ -19,6 +19,10 @@ class MultiAgentEnv(gym.Env):
         self.radius = radius
         self.max_steps = max_steps
         self.goal_threshold = goal_threshold
+        self.obs_mode = obs_mode
+        if obs_mode == "abs": dim = 4*self.n
+        elif obs_mode == "abs+rel": dim = 6*self.n
+        
         # new knobs
         self.terminal_bonus = terminal_bonus
         self.progress_scale = progress_scale
@@ -50,81 +54,75 @@ class MultiAgentEnv(gym.Env):
         return self._get_obs()
 
     def _get_obs(self):
-        if self.normalize_obs:
-            pos = self.pos / self.grid_size
-            goals = self.goals / self.grid_size
-        else:
-            pos = self.pos
-            goals = self.goals
-        return np.concatenate([pos.flatten(), goals.flatten()]).astype(np.float32)
-    
+        pos = self.pos / self.grid_size if self.normalize_obs else self.pos
+        goals = self.goals / self.grid_size if self.normalize_obs else self.goals
+        if self.obs_mode == "abs":
+            obs = [pos, goals]
+        else:  # "abs+rel"
+            rel = (self.goals - self.pos) / self.grid_size
+            obs = [pos, goals, rel]
+        return np.concatenate([a.flatten() for a in obs]).astype(np.float32)
     
     def step(self, action):
-        # reshape & clamp action
-        act = np.clip(action.reshape(self.n, 2), -1, 1)
+        act = action.reshape(self.n, 2)
 
         # ensure mask exists
         if not hasattr(self, "reached_mask"):
             self.reached_mask = np.zeros(self.n, dtype=bool)
 
-        # 1) freeze finished agents BEFORE moving
+        # 1) Freeze reached BEFORE moving
         act[self.reached_mask] = 0.0
 
-        # distances BEFORE move (for progress)
-        old_dists = np.linalg.norm(self.pos - self.goals, axis=1)
-
-        # apply dynamics and clamp to the box
-        self.pos = np.clip(self.pos + self.dt * act, 0.0, self.grid_size)
+        # 2) Move and clamp
+        act = np.clip(act, -1, 1)
+        self.pos += self.dt * act
+        self.pos = np.clip(self.pos, 0.0, self.grid_size)
         self.steps += 1
 
-        # distances AFTER move
+        # 3) Distances and progress
         dists = np.linalg.norm(self.pos - self.goals, axis=1)
-        progress = old_dists - dists  # >0 if we moved closer
+        if not hasattr(self, "prev_dists"):
+            self.prev_dists = dists.copy()
+        progress = self.prev_dists - dists
+        self.prev_dists = dists.copy()
 
-        # ---------- rewards ----------
-        # distance-weighted progress: stronger signal near goal
-        # near_gain ~ 2.5 when on top of goal, ~1 when far
-        near_gain = 1.0 + 1.5 * np.exp(-dists)
-        rewards = 3.5 * near_gain * progress  # progress_scale ~= 3.5
+        # 4) Progress reward (+ close-range magnet)
+        weights = np.ones(self.n)
+        if self.reached_mask.any():
+            weights[~self.reached_mask] = 2.0
+        rewards = weights * (8.0 * progress) - 0.02
 
-        # smaller time penalty, only for agents not yet done
-        active = (~self.reached_mask).astype(float)
-        #rewards -= 0.01 * active  # step_cost ~= 0.02
+        capture_radius = max(self.goal_threshold, 0.7)  # wider pull early in training
+        inside = dists < capture_radius
+        rewards += 0.5 * (capture_radius - dists) * inside.astype(float)
 
-        # collision penalty
+        # 5) Collisions
         collisions_step = 0
         for i in range(self.n):
-            for j in range(i + 1, self.n):
-                if np.linalg.norm(self.pos[i] - self.pos[j]) < 2 * self.radius:
+            for j in range(i+1, self.n):
+                if np.linalg.norm(self.pos[i] - self.pos[j]) < 2*self.radius:
                     rewards[i] -= 10.0
                     rewards[j] -= 10.0
                     collisions_step += 1
 
-        # NEW: gentle "close-range" magnet (helps final commit)
-        capture_radius = max(self.goal_threshold, 0.7)  # curriculum-friendly
-        inside = dists < capture_radius
-        rewards += 0.5 * (capture_radius - dists) * inside.astype(float)
-
-        # terminal bonus & sticky goal
+        # 6) Terminal bonus + sticky goal
         newly_reached = (~self.reached_mask) & (dists < self.goal_threshold)
         if np.any(newly_reached):
-            rewards[newly_reached] += 300.0  # terminal_bonus ~300
-            # snap to goal to avoid jitter
+            rewards[newly_reached] += 300.0
+            # snap & freeze to avoid overshoot/jitter
             self.pos[newly_reached] = self.goals[newly_reached]
             self.reached_mask |= newly_reached
 
-        # update for next step
-        self.prev_dists = dists.copy()
-
         all_reached = bool(np.all(self.reached_mask))
         done = (self.steps >= self.max_steps) or all_reached
-
         info = {
             "all_reached": all_reached,
             "reached_mask": self.reached_mask.copy(),
             "collisions_step": collisions_step
         }
         return self._get_obs(), rewards, done, info
+
+
 
 
 

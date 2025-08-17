@@ -36,7 +36,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt-dir", type=str, required=True)
     ap.add_argument("--n-episodes", type=int, default=20)
-    ap.add_argument("--horizon", type=int, default=256)
+    ap.add_argument("--horizon", type=int, default=300)
     ap.add_argument("--deterministic", action="store_true")
     ap.add_argument("--filtered", action="store_true")
     ap.add_argument("--normalize-obs", action="store_true")
