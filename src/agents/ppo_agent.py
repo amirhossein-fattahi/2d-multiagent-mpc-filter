@@ -27,8 +27,14 @@ class ActorCritic(nn.Module):
         return dist, value
 
     @torch.no_grad()
-    def act(self, obs: torch.Tensor):
+    def act(self, obs):
+        if not isinstance(obs, torch.Tensor):
+            obs = torch.tensor(obs, dtype=torch.float32)
+        if obs.ndim == 1:
+            obs = obs.unsqueeze(0)   # make it (1, obs_dim)
+
         dist, value = self.forward(obs)
         action = dist.sample()
-        logp = dist.log_prob(action).sum(-1)
-        return action, logp, value
+        logp = dist.log_prob(action).sum(axis=-1)
+        return action.squeeze(0).detach().numpy(), logp.squeeze(0), value.squeeze(0)
+
