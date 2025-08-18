@@ -90,7 +90,7 @@ class MultiAgentEnv(gym.Env):
         weights = np.ones(self.n)
         if self.reached_mask.any():
             weights[~self.reached_mask] = 2.0
-        rewards = weights * (8.0 * progress) - 0.05
+        rewards = weights * (8.0 * progress) - 0.01
 
         capture_radius = max(self.goal_threshold, 0.7)  # wider pull early in training
         inside = dists < capture_radius
@@ -101,8 +101,8 @@ class MultiAgentEnv(gym.Env):
         for i in range(self.n):
             for j in range(i+1, self.n):
                 if np.linalg.norm(self.pos[i] - self.pos[j]) < 2*self.radius:
-                    rewards[i] -= 10.0
-                    rewards[j] -= 10.0
+                    rewards[i] -= 5.0
+                    rewards[j] -= 5.0
                     collisions_step += 1
 
         # 6) Terminal bonus + sticky goal
