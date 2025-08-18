@@ -96,9 +96,16 @@ def main():
     set_seed(args.seed)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    env = MultiAgentEnv(n_agents=args.n_agents, dt=0.25, max_steps=args.horizon)    
+    env = MultiAgentEnv(n_agents=args.n_agents,
+                    dt=0.25,
+                    max_steps=args.horizon,
+                    obs_mode="abs+rel")  # NEW
+    
     obs_dim = env.observation_space.shape[0]
-    act_dim = 2  # per-agent action is 2D
+    act_dim = env.action_space.shape[0]
+    print(f"Obs dim: {obs_dim}")
+    print(f"Act dim: {act_dim}")
+
 
     # One independent policy per agent (each sees the full global state)
     nets = [ActorCritic(obs_dim, act_dim).to(device) for _ in range(args.n_agents)]
