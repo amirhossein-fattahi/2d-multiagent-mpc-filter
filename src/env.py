@@ -60,7 +60,7 @@ class MultiAgentEnv(gym.Env):
                 d0 = np.linalg.norm(self.pos - self.goals, axis=1)
                 if np.all((d0 > 3.0) & (d0 < 6.0)):
                     break
-                
+
         return self._get_obs()
 
     def _get_obs(self):
@@ -75,64 +75,73 @@ class MultiAgentEnv(gym.Env):
     
     def step(self, action):
         act = action.reshape(self.n, 2)
+        act = np.clip(act, -1, 1)
 
-        # ensure mask exists
+        # freeze agents that already reached
         if not hasattr(self, "reached_mask"):
             self.reached_mask = np.zeros(self.n, dtype=bool)
-
-        # 1) Freeze reached BEFORE moving
         act[self.reached_mask] = 0.0
 
-        # 2) Move and clamp
-        act = np.clip(act, -1, 1)
+        # apply dynamics and clamp to the box
         self.pos += self.dt * act
         self.pos = np.clip(self.pos, 0.0, self.grid_size)
         self.steps += 1
 
-        # 3) Distances and progress
+        # distances & progress (potential-based shaping)
         dists = np.linalg.norm(self.pos - self.goals, axis=1)
         if not hasattr(self, "prev_dists"):
             self.prev_dists = dists.copy()
-        progress = self.prev_dists - dists
+        progress = self.prev_dists - dists          # > 0 when moving closer
         self.prev_dists = dists.copy()
 
-        # 4) Progress reward (+ close-range magnet)
-        weights = np.ones(self.n)
-        if self.reached_mask.any():
-            weights[~self.reached_mask] = 2.0
-        rewards = weights * (8.0 * progress) - 0.01
+        # --- Reward terms (tuneable constants) ---
+        k_progress = 8.0           # main "get closer" drive
+        k_time     = 0.02          # small per-step cost
+        k_back     = 4.0           # penalty when moving away (progress < 0)
+        k_goal     = 300.0         # one-time reach bonus
+        k_close    = 2.0           # close-range magnet strength
+        k_col      = 25.0          # collision penalty scale
 
-        capture_radius = max(self.goal_threshold, 0.7)  # wider pull early in training
-        inside = dists < capture_radius
-        rewards += 5.0 * (capture_radius - dists) * inside.astype(float)
+        # Base: progress reward (and extra penalty if moving away)
+        rewards = k_progress * progress - k_time
+        moving_away = progress < 0.0
+        rewards[moving_away] -= k_back * (-progress[moving_away])
 
-        # 5) Collisions
+        # Close-range "magnet" so it commits at the end (quadratic well)
+        # Use a capture radius >= goal_threshold so attraction starts earlier.
+        capture_radius = max(self.goal_threshold, 0.7)  # works with curriculum
+        gap = np.maximum(0.0, capture_radius - dists)
+        rewards += k_close * (gap ** 2)
+
+        # Collisions: scale by overlap depth (smoother than fixed -10)
         collisions_step = 0
         for i in range(self.n):
-            for j in range(i+1, self.n):
-                if np.linalg.norm(self.pos[i] - self.pos[j]) < 2*self.radius:
-                    rewards[i] -= 5.0
-                    rewards[j] -= 5.0
+            for j in range(i + 1, self.n):
+                dij = np.linalg.norm(self.pos[i] - self.pos[j])
+                overlap = max(0.0, 2 * self.radius - dij)
+                if overlap > 0.0:
+                    penalty = k_col * (overlap / (2 * self.radius))
+                    rewards[i] -= penalty
+                    rewards[j] -= penalty
                     collisions_step += 1
 
-        # 6) Terminal bonus + sticky goal
-        newly_reached = (~self.reached_mask) & (dists < self.goal_threshold)
-        if np.any(newly_reached):
-            rewards[newly_reached] += 400.0
-            # snap & freeze to avoid overshoot/jitter
-            self.pos[newly_reached] = self.goals[newly_reached]
-            self.reached_mask |= newly_reached
+        # Reaching: big one-time bonus + "sticky" goal (snap & freeze)
+        reached_now = (dists < self.goal_threshold) & (~self.reached_mask)
+        if np.any(reached_now):
+            rewards[reached_now] += k_goal
+            # Snap to goal to avoid jitter/overshoot, then freeze
+            self.pos[reached_now] = self.goals[reached_now]
+            self.reached_mask[reached_now] = True
 
         all_reached = bool(np.all(self.reached_mask))
         done = (self.steps >= self.max_steps) or all_reached
+
         info = {
             "all_reached": all_reached,
             "reached_mask": self.reached_mask.copy(),
             "collisions_step": collisions_step
         }
         return self._get_obs(), rewards, done, info
-
-
 
 
 
