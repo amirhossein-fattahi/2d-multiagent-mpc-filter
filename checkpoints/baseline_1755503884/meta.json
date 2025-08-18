@@ -1,0 +1,5 @@
+{
+  "n_agents": 2,
+  "horizon": 300,
+  "seed": 3
+}

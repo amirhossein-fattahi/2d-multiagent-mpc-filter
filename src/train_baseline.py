@@ -54,14 +54,14 @@ def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--n-agents', type=int, default=2)
-    p.add_argument('--episodes', type=int, default=5000)
+    p.add_argument('--episodes', type=int, default=100)
     p.add_argument('--horizon', type=int, default=300, help='max steps per episode')
     p.add_argument('--lr', type=float, default=3e-4)
     p.add_argument('--gamma', type=float, default=0.99)
     p.add_argument('--lam', type=float, default=0.95)
     p.add_argument('--clip-eps', type=float, default=0.2)
     p.add_argument('--epochs', type=int, default=4, help='PPO epochs per episode')
-    p.add_argument('--seed', type=int, default=3)
+    p.add_argument('--seed', type=int, default=0)
     args = p.parse_args()
     
     run_tag = f"{'filtered' if 'with_filter' in __file__ else 'baseline'}_{int(time.time())}"

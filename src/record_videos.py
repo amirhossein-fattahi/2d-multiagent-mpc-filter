@@ -71,7 +71,7 @@ def main():
     ap.add_argument("--ckpt-dir", type=str, required=True, help="checkpoints/<tag>")
     ap.add_argument("--out-dir", type=str, default="videos")
     ap.add_argument("--n-episodes", type=int, default=5)
-    ap.add_argument("--horizon", type=int, default=256)
+    ap.add_argument("--horizon", type=int, default=300)
     ap.add_argument("--filtered", action="store_true", help="use MPC safety filter at eval")
     ap.add_argument("--deterministic", action="store_true", help="use mean action")
     ap.add_argument("--seed", type=int, default=0)
