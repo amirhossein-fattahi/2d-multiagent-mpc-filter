@@ -143,8 +143,8 @@ def main():
 
             # Each agent proposes its own 2D action from the same global observation
             for i in range(args.n_agents):
-                a, logp, v = nets[i].act(obs_t)
-                actions.append(a.cpu().numpy())
+                a, logp, v = nets[i].act(obs_t[i])
+                actions.append(a)   # already numpy
                 logps.append(logp.cpu())
                 values.append(v.cpu())
 
