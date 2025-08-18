@@ -96,16 +96,9 @@ def main():
     set_seed(args.seed)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    env = MultiAgentEnv(n_agents=args.n_agents,
-                    dt=0.25,
-                    max_steps=args.horizon,
-                    obs_mode="abs+rel")  # NEW
-    
+    env = MultiAgentEnv(n_agents=args.n_agents, dt=0.25, max_steps=args.horizon)    
     obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-    print(f"Obs dim: {obs_dim}")
-    print(f"Act dim: {act_dim}")
-
+    act_dim = 2  # per-agent action is 2D
 
     # One independent policy per agent (each sees the full global state)
     nets = [ActorCritic(obs_dim, act_dim).to(device) for _ in range(args.n_agents)]
@@ -143,9 +136,8 @@ def main():
 
             # Each agent proposes its own 2D action from the same global observation
             for i in range(args.n_agents):
-                obs_i = torch.as_tensor(obs_t[i], dtype=torch.float32).unsqueeze(0)  # shape (1, obs_dim)
-                a, logp, v = nets[i].act(obs_i)
-                actions.append(a.squeeze(0))  # remove batch dim
+                a, logp, v = nets[i].act(obs_t)
+                actions.append(a.cpu().numpy())
                 logps.append(logp.cpu())
                 values.append(v.cpu())
 
