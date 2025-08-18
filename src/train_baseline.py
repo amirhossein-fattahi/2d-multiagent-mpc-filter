@@ -143,8 +143,9 @@ def main():
 
             # Each agent proposes its own 2D action from the same global observation
             for i in range(args.n_agents):
-                a, logp, v = nets[i].act(obs_t[i])
-                actions.append(a)   # already numpy
+                obs_i = torch.as_tensor(obs_t[i], dtype=torch.float32).unsqueeze(0)  # shape (1, obs_dim)
+                a, logp, v = nets[i].act(obs_i)
+                actions.append(a.squeeze(0))  # remove batch dim
                 logps.append(logp.cpu())
                 values.append(v.cpu())
 
