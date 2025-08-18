@@ -51,6 +51,16 @@ class MultiAgentEnv(gym.Env):
         self.reached_mask = np.zeros(self.n, dtype=bool)
         dists = np.linalg.norm(self.pos - self.goals, axis=1)
         self.prev_dists = dists.copy()
+
+        if getattr(self, "sample_short_tasks", False):
+            # re-sample until distances are within [3, 6]
+            for _ in range(100):
+                self.pos = np.random.uniform(0, self.grid_size, (self.n, 2))
+                self.goals = np.random.uniform(0, self.grid_size, (self.n, 2))
+                d0 = np.linalg.norm(self.pos - self.goals, axis=1)
+                if np.all((d0 > 3.0) & (d0 < 6.0)):
+                    break
+                
         return self._get_obs()
 
     def _get_obs(self):
