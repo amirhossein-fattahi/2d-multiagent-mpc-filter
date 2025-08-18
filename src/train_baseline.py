@@ -49,6 +49,28 @@ def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
     returns = adv + values[:-1] if len(values) == T+1 else adv + values
     return adv, returns
 
+
+
+def set_curriculum(env, ep):
+    # Phase 0: 0–999 (easy)
+    if ep < 1000:
+        env.goal_threshold = 0.7
+        env.radius = 0.45
+        env.max_steps = 300
+        # (optional) keep starts/goals a bit closer:
+        # env.sample_short_tasks = True  # if you add such logic to reset()
+    # Phase 1: 1000–2999 (medium)
+    elif ep < 3000:
+        env.goal_threshold = 0.5
+        env.radius = 0.45
+        env.max_steps = 300
+    # Phase 2: 3000+ (target)
+    else:
+        env.goal_threshold = 0.3
+        env.radius = 0.5
+        env.max_steps = 300
+
+
 # ---------- Training ----------
 
 def main():
@@ -91,6 +113,7 @@ def main():
         else:
             env.goal_threshold = 0.3
 
+        set_curriculum(env, ep)
         obs = env.reset().astype(np.float32)
         done = False
         ep_return = np.zeros(args.n_agents, dtype=np.float32)
