@@ -59,6 +59,14 @@ Each agent learns a PPO policy to reach its own goal. A tiny **MPC-style safety 
 
 ---
 
+### Baseline
+![Baseline demo](assets/baseline/ep_001.gif)
+<!--
+### Filtered (MPC safety)
+![Filtered demo](assets/filtered/ep_001.gif)
+-->
+---
+
 ## Installation
 
 > **Windows PowerShell / VS Code terminal example**
