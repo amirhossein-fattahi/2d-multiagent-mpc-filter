@@ -8,10 +8,9 @@ DEFAULT_GOAL_THRESHOLD = 0.3
 class MultiAgentEnv(gym.Env):
     metadata = {'render.modes': ['console']}
 
-    def __init__(self, n_agents=2, grid_size=10, obs_mode="abs", normalize_obs=True, dt=0.1, radius=0.5, max_steps=200,
-             goal_threshold=DEFAULT_GOAL_THRESHOLD,
-             terminal_bonus=200.0, progress_scale=5.0, step_cost=0.05,
-             sticky_on_goal=True):
+    def __init__(self, n_agents=2, grid_size=10, obs_mode="abs", normalize_obs=True,
+                 dt=0.1, radius=0.5, max_steps=200, goal_threshold=DEFAULT_GOAL_THRESHOLD,
+                 terminal_bonus=200.0, progress_scale=5.0, step_cost=0.05, sticky_on_goal=True):
         super().__init__()
         self.n = n_agents
         self.grid_size = grid_size
@@ -20,25 +19,36 @@ class MultiAgentEnv(gym.Env):
         self.max_steps = max_steps
         self.goal_threshold = goal_threshold
         self.obs_mode = obs_mode
-        if obs_mode == "abs": dim = 4*self.n
-        elif obs_mode == "abs+rel": dim = 6*self.n
-        
-        # new knobs
+        self.normalize_obs = normalize_obs
+
+        # ---- FIX: correct observation dimension (no override later) ----
+        if self.obs_mode == "abs":
+            dim = 4 * self.n           # [x,y] for all agents + [gx,gy] for all
+        elif self.obs_mode == "abs+rel":
+            dim = 6 * self.n           # add [gx-x, gy-y] for all
+        else:
+            raise ValueError(f"Unknown obs_mode: {self.obs_mode}")
+
+        # knobs (unchanged)
         self.terminal_bonus = terminal_bonus
         self.progress_scale = progress_scale
         self.step_cost = step_cost
         self.sticky_on_goal = sticky_on_goal
-        self.normalize_obs = normalize_obs
-        dim = 4 * self.n
-        self.observation_space = spaces.Box(
-            low=0.0 if normalize_obs else 0.0,
-            high=1.0 if normalize_obs else self.grid_size,
-            shape=(dim,), dtype=np.float32
-        )
+
+        # ---- FIX: set Box bounds to match actual value ranges ----
+        if self.normalize_obs:
+            low = -np.ones(dim, dtype=np.float32)   # centered features in [-1,1]
+            high =  np.ones(dim, dtype=np.float32)
+        else:
+            low = np.zeros(dim, dtype=np.float32)
+            high = np.full(dim, self.grid_size, dtype=np.float32)
+
+        self.observation_space = spaces.Box(low=low, high=high, shape=(dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1, high=1, shape=(2*self.n,), dtype=np.float32)
+
         self.reset()
 
-    def reset(self, starts=None, goals=None):
+        def reset(self, starts=None, goals=None):
         if starts is not None:
             self.pos = np.array(starts, dtype=float).reshape(self.n, 2)
         else:
@@ -47,13 +57,12 @@ class MultiAgentEnv(gym.Env):
             self.goals = np.array(goals, dtype=float).reshape(self.n, 2)
         else:
             self.goals = np.random.uniform(0, self.grid_size, (self.n, 2))
+
         self.steps = 0
         self.reached_mask = np.zeros(self.n, dtype=bool)
-        dists = np.linalg.norm(self.pos - self.goals, axis=1)
-        self.prev_dists = dists.copy()
 
+        # optional curriculum
         if getattr(self, "sample_short_tasks", False):
-            # re-sample until distances are within [3, 6]
             for _ in range(100):
                 self.pos = np.random.uniform(0, self.grid_size, (self.n, 2))
                 self.goals = np.random.uniform(0, self.grid_size, (self.n, 2))
@@ -61,17 +70,29 @@ class MultiAgentEnv(gym.Env):
                 if np.all((d0 > 3.0) & (d0 < 6.0)):
                     break
 
+        # ---- FIX: prev_dists must match the final (pos, goals) ----
+        dists = np.linalg.norm(self.pos - self.goals, axis=1)
+        self.prev_dists = dists.copy()
+
         return self._get_obs()
 
     def _get_obs(self):
-        pos = self.pos / self.grid_size if self.normalize_obs else self.pos
-        goals = self.goals / self.grid_size if self.normalize_obs else self.goals
+        if self.normalize_obs:
+            # center to [-1, 1]
+            pos = (self.pos / self.grid_size) * 2.0 - 1.0
+            goals = (self.goals / self.grid_size) * 2.0 - 1.0
+            rel = (self.goals - self.pos) / self.grid_size  # already in [-1,1]
+        else:
+            pos = self.pos
+            goals = self.goals
+            rel = (self.goals - self.pos)
+
         if self.obs_mode == "abs":
-            obs = [pos, goals]
+            parts = [pos, goals]
         else:  # "abs+rel"
-            rel = (self.goals - self.pos) / self.grid_size
-            obs = [pos, goals, rel]
-        return np.concatenate([a.flatten() for a in obs]).astype(np.float32)
+            parts = [pos, goals, rel]
+
+        return np.concatenate([p.flatten() for p in parts]).astype(np.float32)
     
     def step(self, action):
         act = action.reshape(self.n, 2)
