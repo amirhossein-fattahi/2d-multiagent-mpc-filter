@@ -48,7 +48,7 @@ class MultiAgentEnv(gym.Env):
 
         self.reset()
 
-        def reset(self, starts=None, goals=None):
+    def reset(self, starts=None, goals=None):
         if starts is not None:
             self.pos = np.array(starts, dtype=float).reshape(self.n, 2)
         else:
