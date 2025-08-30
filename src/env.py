@@ -73,23 +73,19 @@ class MultiAgentEnv(gym.Env):
         # ---- FIX: prev_dists must match the final (pos, goals) ----
         dists = np.linalg.norm(self.pos - self.goals, axis=1)
         self.prev_dists = dists.copy()
-
         return self._get_obs()
 
     def _get_obs(self):
         if self.normalize_obs:
-            # center to [-1, 1]
-            pos = (self.pos / self.grid_size) * 2.0 - 1.0
+            pos   = (self.pos   / self.grid_size) * 2.0 - 1.0
             goals = (self.goals / self.grid_size) * 2.0 - 1.0
-            rel = (self.goals - self.pos) / self.grid_size  # already in [-1,1]
         else:
-            pos = self.pos
-            goals = self.goals
-            rel = (self.goals - self.pos)
+            pos, goals = self.pos, self.goals
 
         if self.obs_mode == "abs":
             parts = [pos, goals]
-        else:  # "abs+rel"
+        else:
+            rel = (self.goals - self.pos) / self.grid_size  # in [-1,1]
             parts = [pos, goals, rel]
 
         return np.concatenate([p.flatten() for p in parts]).astype(np.float32)
