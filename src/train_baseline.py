@@ -136,13 +136,14 @@ def main():
 
             # Each agent proposes its own 2D action from the same global observation
             for i in range(args.n_agents):
-                a, logp, v = nets[i].act(obs_t)
-                actions.append(a.cpu().numpy())
+                a, logp, v = nets[i].act(obs_t, deterministic=False)  # each sees same global obs
+                actions.append(a.squeeze(0).cpu().numpy())   # [2]
                 logps.append(logp.cpu())
                 values.append(v.cpu())
 
-            action_vec = np.concatenate(actions, axis=-1).astype(np.float32)
+            action_vec = np.concatenate(actions, axis=0)  # shape (2*n_agents,)
             next_obs, rewards, done, info = env.step(action_vec)
+
 
 
             ep_return += np.array(rewards, dtype=np.float32)
