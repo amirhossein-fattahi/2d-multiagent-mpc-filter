@@ -56,19 +56,19 @@ def set_curriculum(env, ep):
     if ep < 1000:
         env.goal_threshold = 0.7
         env.radius = 0.45
-        env.max_steps = 300
+        env.max_steps = 3000
         # (optional) keep starts/goals a bit closer:
         # env.sample_short_tasks = True  # if you add such logic to reset()
     # Phase 1: 1000–2999 (medium)
     elif ep < 3000:
         env.goal_threshold = 0.5
         env.radius = 0.45
-        env.max_steps = 300
+        env.max_steps = 3000
     # Phase 2: 3000+ (target)
     else:
         env.goal_threshold = 0.3
         env.radius = 0.5
-        env.max_steps = 300
+        env.max_steps = 3000
 
 
 # ---------- Training ----------
@@ -76,8 +76,8 @@ def set_curriculum(env, ep):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--n-agents', type=int, default=2)
-    p.add_argument('--episodes', type=int, default=100)
-    p.add_argument('--horizon', type=int, default=300, help='max steps per episode')
+    p.add_argument('--episodes', type=int, default=1000)
+    p.add_argument('--horizon', type=int, default=3000, help='max steps per episode')
     p.add_argument('--lr', type=float, default=3e-4)
     p.add_argument('--gamma', type=float, default=0.99)
     p.add_argument('--lam', type=float, default=0.95)
