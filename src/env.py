@@ -112,8 +112,8 @@ class MultiAgentEnv(gym.Env):
         self.prev_dists = dists.copy()
 
         # --- Reward terms (tuneable constants) ---
-        k_progress = 8.0           # main "get closer" drive
-        k_time     = 0.02          # small per-step cost
+        k_progress = 10.0           # main "get closer" drive
+        k_time     = 0.03          # small per-step cost
         k_back     = 4.0           # penalty when moving away (progress < 0)
         k_goal     = 300.0         # one-time reach bonus
         k_close    = 2.0           # close-range magnet strength
