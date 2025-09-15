@@ -77,6 +77,8 @@ def to_gif(frames, out_path, gif_fps=12, max_width=512):
     step = max(1, int(len(frames) * (gif_fps / max(1, len(frames)))))
     sampled = frames[::step] if step > 1 else frames
 
+
+    # From this line to the end:
     # Resize to max_width while keeping aspect
     if max_width and PIL_OK:
         resized = []
@@ -146,6 +148,7 @@ def main():
 
         plt.close(fig)
 
+        # Until here
         # Save MP4 (good for tweets, local viewing)
         mp4_path = os.path.join(args.out_dir, f"ep_{ep:03d}.mp4")
         with imageio.get_writer(mp4_path, fps=int(round(1.0/env.dt))) as w:
