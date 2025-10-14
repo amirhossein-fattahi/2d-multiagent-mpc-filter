@@ -35,30 +35,30 @@ Each agent learns a PPO policy to reach its own goal. A tiny **MPC-style safety 
 
 ---
 
-## Project Structure
+## Project Structure  
 
-2d-multiagent-mpc-filter/
-├─ src/
-│ ├─ env.py # MultiAgentEnv (Gym-style)
-│ ├─ agents/
-│ │ ├─ init.py
-│ │ └─ ppo_agent.py # Actor–Critic (continuous 2D)
-│ ├─ filter/
-│ │ ├─ init.py
-│ │ └─ mpc_filter.py # QP safety projection (+ optional slacks)
-│ ├─ train_baseline.py # PPO without safety filter
-│ ├─ train_with_filter.py # PPO with MPC safety filter
-│ └─ visualize.py # ← Live graphical simulation (Matplotlib)
-├─ tests/
-│ └─ test_env.py # minimal sanity checks
-├─ requirements.txt
-├─ setup.py # optional: pip install -e .
-├─ .github/workflows/ci.yml # optional: GitHub Actions (pytest)
-└─ LICENSE # MIT
+2d-multiagent-mpc-filter/  
+├─ src/  
+│ ├─ env.py # MultiAgentEnv (Gym-style)  
+│ ├─ agents/  
+│ │ ├─ init.py  
+│ │ └─ ppo_agent.py # Actor–Critic (continuous 2D)  
+│ ├─ filter/  
+│ │ ├─ init.py  
+│ │ └─ mpc_filter.py # QP safety projection (+ optional slacks)  
+│ ├─ train_baseline.py # PPO without safety filter  
+│ ├─ train_with_filter.py # PPO with MPC safety filter  
+│ └─ visualize.py # ← Live graphical simulation (Matplotlib)  
+├─ tests/  
+│ └─ test_env.py # minimal sanity checks  
+├─ requirements.txt  
+├─ setup.py # optional: pip install -e .  
+├─ .github/workflows/ci.yml # optional: GitHub Actions (pytest)  
+└─ LICENSE # MIT  
 
 
 ---
-
+<!--
 ### Baseline
 ![Baseline demo](assets/baseline/ep_001.gif)
 
@@ -66,8 +66,9 @@ Each agent learns a PPO policy to reach its own goal. A tiny **MPC-style safety 
 ![Filtered demo](assets/filtered/ep_001.gif)
 
 ---
+-->
 
-## Installation
+## Installation  
 
 > **Windows PowerShell / VS Code terminal example**
 
@@ -84,33 +85,33 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Verify cvxpy solvers:
-python -c "import cvxpy as cp; print(cp.installed_solvers())"
-# Expect to see OSQP in the list; if not:
-pip install osqp
+Verify cvxpy solvers:  
+python -c "import cvxpy as cp; print(cp.installed_solvers())"  
+(Expect to see OSQP in the list; if not:)  
+pip install osqp  
 
 
-Quickstart
+## Quickstart  
 
-Baseline (no filter):
+Baseline (no filter):  
 python src/train_baseline.py --n-agents 2 --episodes 50 --horizon 300
 
-With MPC filter:
+With MPC filter:  
 python src/train_with_filter.py --n-agents 2 --episodes 50 --horizon 300
 
-Recommended flags (to make finishing easier):
-# add to either command if supported by your scripts
+Recommended flags (to make finishing easier):  
+(add to either command if supported by your scripts)  
 --grid-size 10 --dt 0.2 --radius 0.5 --epochs 8 --lr 1e-4
 
-Saving checkpoints (optional, for visualization):
-At the end of each train script, save weights:
-import os, torch
-os.makedirs("checkpoints", exist_ok=True)
-for i, net in enumerate(nets):
-    torch.save(net.state_dict(), f"checkpoints/<baseline_or_filtered>_final_agent{i}.pt")
+Saving checkpoints (optional, for visualization):  
+At the end of each train script, save weights:  
+import os, torch  
+os.makedirs("checkpoints", exist_ok=True)  
+for i, net in enumerate(nets):  
+    torch.save(net.state_dict(), f"checkpoints/<baseline_or_filtered>_final_agent{i}.pt")  
 
-Visualization (Live Simulation)
-The src/visualize.py script shows agents (colored circles), goals (X markers), and a HUD with step, cumulative collisions, and how many agents reached.
+## Visualization (Live Simulation)  
+The src/visualize.py script shows agents (colored circles), goals (X markers), and a HUD with step, cumulative collisions, and how many agents reached.  
 
 Run examples:
 # Random actions (smoke test)
@@ -128,7 +129,7 @@ python src/visualize.py --mode policy --filter --load-dir checkpoints --n-agents
 # Easier finishing for demo
 python src/visualize.py --mode policy --filter --load-dir checkpoints --dt 0.2 --goal-threshold 0.35 --horizon 300
 
-Key flags:
+**Key flags:**
 
 --mode {random,policy}: random actions or use PPO Actor–Critic networks
 
@@ -144,8 +145,8 @@ Key flags:
 
 ------------------------
 
-Environment Details
-State: concatenation of all agent positions and all goals
+## Environment Details  
+State: concatenation of all agent positions and all goals  
 [p1x, p1y, p2x, p2y, ..., g1x, g1y, g2x, g2y, ...]
 
 Action: per-agent 2D velocity; env clips to bounds, then
@@ -168,15 +169,14 @@ Episode ends when all agents reach their goals or max_steps is hit.
 
 ------------------------------
 
-MPC Safety Filter (QP)
-At each step we solve:
+## MPC Safety Filter (QP)  
+At each step we solve:  
 
-Objective:
+Objective:  
 minimize ‖u − u_prop‖² + λ * Σ s_ij²
 
-Subject to (for every pair i<j):
-(p_i − p_j)ᵀ (u_i − u_j) ≥ (d_min² − ‖p_i − p_j‖²)/dt − s_ij
--u_max ≤ u ≤ u_max and s_ij ≥ 0
+Subject to (for every pair i<j):  
+(p_i − p_j)ᵀ (u_i − u_j) ≥ (d_min² − ‖p_i − p_j‖²)/dt − s_ij - u_max ≤ u ≤ u_max and s_ij ≥ 0
 
 u_prop: policy’s proposed actions
 
@@ -195,7 +195,7 @@ This is a fast, always-feasible projection that nudges agents away from imminent
 
 --------------------------------------
 
-Tips to Increase Success Rate
+## Tips to Increase Success Rate  
 Speed & threshold: use --dt 0.2 and a reach threshold of 0.3–0.4.
 
 Team bonus: give a one-time bonus when all agents reach (coordination).
@@ -211,9 +211,9 @@ Curriculum: start with grid_size=5, dt=0.2, n_agents=2, optionally spawn goals n
 
 ----------------------------------------
 
-Development
-Run tests:
-pytest -q
+## Development  
+Run tests:  
+pytest -q  
 
 Editable install:
 pip install -e .
@@ -229,15 +229,15 @@ setup.py allows pip install -e . and later PyPI packaging if desired.
 
 ----------------------------------------
 
-Citation
-If you use this project in academic work or demos, please consider citing the repository:
+## Citation  
+If you use this project in academic work or demos, please consider citing the repository:  
 
-@misc{2d-multiagent-mpc-filter,
-  title  = {2D Multi-Agent Navigation with an MPC Safety Filter},
-  author = {Your Name},
-  year   = {2025},
-  url    = {https://github.com/<your-username>/2d-multiagent-mpc-filter}
-}
+@misc{2d-multiagent-mpc-filter,  
+  title  = {2D Multi-Agent Navigation with an MPC Safety Filter},  
+  author = {Your Name},  
+  year   = {2025},  
+  url    = {https://github.com/<your-username>/2d-multiagent-mpc-filter}  
+}  
 
 
 -------------------------------------------
