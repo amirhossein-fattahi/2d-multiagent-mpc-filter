@@ -16,10 +16,8 @@ Each agent learns a PPO policy to reach its own goal. A tiny **MPC-style safety 
 - [Environment Details](#environment-details)
 - [MPC Safety Filter (QP)](#mpc-safety-filter-qp)
 - [Tips to Increase Success Rate](#tips-to-increase-success-rate)
-- [Troubleshooting](#troubleshooting)
 - [Development](#development)
 - [Citation](#citation)
-- [Acknowledgements](#acknowledgements)
 
 ---
 
