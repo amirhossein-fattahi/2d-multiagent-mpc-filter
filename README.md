@@ -71,7 +71,7 @@ Each agent learns a PPO policy to reach its own goal. A tiny **MPC-style safety 
 > **Windows PowerShell / VS Code terminal example**
 
 ```powershell
-git clone <YOUR_REPO_URL>
+git clone https://github.com/amirhossein-fattahi/2d-multiagent-mpc-filter
 cd 2d-multiagent-mpc-filter
 
 python -m venv venv
@@ -81,13 +81,13 @@ python -m pip install --upgrade pip wheel setuptools
 pip install -r requirements.txt
 # Optional (for clean imports across scripts/notebooks):
 pip install -e .
-```
+
 
 Verify cvxpy solvers:  
 python -c "import cvxpy as cp; print(cp.installed_solvers())"  
 (Expect to see OSQP in the list; if not:)  
 pip install osqp  
-
+```
 
 ## Quickstart  
 
@@ -112,19 +112,19 @@ for i, net in enumerate(nets):
 The src/visualize.py script shows agents (colored circles), goals (X markers), and a HUD with step, cumulative collisions, and how many agents reached.  
 
 Run examples:
-# Random actions (smoke test)
+#### Random actions (smoke test)
 python src/visualize.py --mode random --n-agents 2 --horizon 300
 
-# Random actions WITH safety filter
+#### Random actions WITH safety filter
 python src/visualize.py --mode random --filter --n-agents 2 --horizon 300
 
-# Trained policies (load latest checkpoints)
+### Trained policies (load latest checkpoints)
 python src/visualize.py --mode policy --load-dir checkpoints --n-agents 2 --horizon 300
 
-# Trained policies WITH safety filter
+### Trained policies WITH safety filter
 python src/visualize.py --mode policy --filter --load-dir checkpoints --n-agents 2 --horizon 300
 
-# Easier finishing for demo
+### Easier finishing for demo
 python src/visualize.py --mode policy --filter --load-dir checkpoints --dt 0.2 --goal-threshold 0.35 --horizon 300
 
 **Key flags:**
@@ -232,9 +232,9 @@ If you use this project in academic work or demos, please consider citing the re
 
 @misc{2d-multiagent-mpc-filter,  
   title  = {2D Multi-Agent Navigation with an MPC Safety Filter},  
-  author = {Your Name},  
+  author = {Amirhossein Fattahi},  
   year   = {2025},  
-  url    = {https://github.com/<your-username>/2d-multiagent-mpc-filter}  
+  url    = {https://github.com/amirhossein-fattahi/2d-multiagent-mpc-filter}  
 }  
 
 
